@@ -36,6 +36,7 @@ async function run() {
     try {
 
         const usersCollection = client.db("bangalTourDb").collection("users");
+        const packagesCollection = client.db("bangalTourDb").collection("packages");
 
         // users api
         app.get('/users', async (req, res) => {
@@ -56,6 +57,12 @@ async function run() {
             }
         })
 
+
+        // packages api
+        app.get('/packages', async(req, res)=>{
+            const result = await packagesCollection.find().toArray();
+            res.send(result)
+        })
 
 
 
