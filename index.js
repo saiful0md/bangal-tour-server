@@ -1,6 +1,7 @@
 const express = require('express')
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express()
+const jwt = require('jsonwebtoken')
 const cors = require('cors')
 require('dotenv').config();
 const port = process.env.PORT || 5000;
@@ -36,7 +37,16 @@ async function run() {
     try {
 
         const usersCollection = client.db("bangalTourDb").collection("users");
+        const wishListCollection = client.db("bangalTourDb").collection("wishList");
+        const tourGuideCollection = client.db("bangalTourDb").collection("tourGuide");
         const packagesCollection = client.db("bangalTourDb").collection("packages");
+
+        // jwt related api
+        app.post('/jwt', async (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+            res.send({ token })
+        })
 
         // users api
         app.get('/users', async (req, res) => {
@@ -59,11 +69,35 @@ async function run() {
 
 
         // packages api
-        app.get('/packages', async(req, res)=>{
+        app.get('/packages', async (req, res) => {
             const result = await packagesCollection.find().toArray();
             res.send(result)
         })
+        app.post('/packages',async (req, res) => {
+            const package = req.body;
+            const result = await packagesCollection.insertOne(package);
+            res.send(result)
+        })
 
+        app.delete('/packages/:id',async (req, res)=>{
+            const id = req.params.id;
+            const query = {_id: new ObjectId(id)};
+            const result = await packagesCollection.deleteOne(query)
+            res.send(result)
+        })
+
+        // guide api
+        app.get('/tourGuide', async (req, res) => {
+            const result = await tourGuideCollection.find().toArray()
+            res.send(result)
+        })
+
+        // wishlist
+        app.post('/wishList', async (req, res) => {
+            const package = req.body;
+            const result = await wishListCollection.insertOne(package);
+            res.send(result)
+        })
 
 
         // Send a ping to confirm a successful connection
