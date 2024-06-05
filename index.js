@@ -10,6 +10,8 @@ const port = process.env.PORT || 5000;
 app.use(cors({
     origin: [
         "http://localhost:5173",
+        "https://assignment-12-a77e8.web.app",
+        
     ]
 }))
 app.use(express.json())
@@ -73,15 +75,21 @@ async function run() {
             const result = await packagesCollection.find().toArray();
             res.send(result)
         })
-        app.post('/packages',async (req, res) => {
+        app.get('/packages/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await packagesCollection.findOne(query);
+            res.send(result)
+        })
+        app.post('/packages', async (req, res) => {
             const package = req.body;
             const result = await packagesCollection.insertOne(package);
             res.send(result)
         })
 
-        app.delete('/packages/:id',async (req, res)=>{
+        app.delete('/packages/:id', async (req, res) => {
             const id = req.params.id;
-            const query = {_id: new ObjectId(id)};
+            const query = { _id: new ObjectId(id) };
             const result = await packagesCollection.deleteOne(query)
             res.send(result)
         })
