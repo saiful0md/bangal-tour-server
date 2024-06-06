@@ -11,7 +11,7 @@ app.use(cors({
     origin: [
         "http://localhost:5173",
         "https://assignment-12-a77e8.web.app",
-        
+
     ]
 }))
 app.use(express.json())
@@ -42,6 +42,7 @@ async function run() {
         const wishListCollection = client.db("bangalTourDb").collection("wishList");
         const tourGuideCollection = client.db("bangalTourDb").collection("tourGuide");
         const packagesCollection = client.db("bangalTourDb").collection("packages");
+        const packageBookingCollection = client.db("bangalTourDb").collection("packageBooking");
 
         // jwt related api
         app.post('/jwt', async (req, res) => {
@@ -99,7 +100,30 @@ async function run() {
             const result = await tourGuideCollection.find().toArray()
             res.send(result)
         })
+        app.get('/tourGuide/:id', async (req, res) => {
+            const id = req.params.id
+            const query = { _id: new ObjectId(id) }
+            const result = await tourGuideCollection.findOne(query)
+            res.send(result)
+        })
 
+        // booking api
+        app.post('/booking', async (req, res) => {
+            const booking = req.body;
+            const query = {
+
+                packageName: booking.packageName,
+                userEmail: booking.userEmail
+            }
+            const alreadyBooked = await packageBookingCollection.findOne(query)
+            if (alreadyBooked) {
+                return res
+                    .status(400)
+                    .send('You already Purchase')
+            }
+            const result = await packageBookingCollection.insertOne(booking);
+            res.send(result)
+        })
         // wishlist
         app.post('/wishList', async (req, res) => {
             const package = req.body;
