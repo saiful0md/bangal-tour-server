@@ -119,15 +119,37 @@ async function run() {
             if (alreadyBooked) {
                 return res
                     .status(400)
-                    .send('You already Purchase')
+                    .send('You already Booked')
             }
             const result = await packageBookingCollection.insertOne(booking);
             res.send(result)
         })
         // wishlist
+        app.get('/wishList/:email', async(req,res)=>{
+            const email = req.params.email;
+            const query = {email: email}
+            const result = await wishListCollection.find(query).toArray()
+            res.send(result)
+        })
+
         app.post('/wishList', async (req, res) => {
             const package = req.body;
+            const query = {
+                name: package.name,
+                email: package.email
+            }
+            const alreadyListed = await wishListCollection.findOne(query)
+            if(alreadyListed){
+                return res.status(400).send('Already listed')
+            }
             const result = await wishListCollection.insertOne(package);
+            res.send(result)
+        })
+
+        app.delete('/wishList/:id', async (req,res)=>{
+            const id = req.params.id;
+            const query = {_id: new ObjectId(id)};
+            const result = await wishListCollection.deleteOne(query)
             res.send(result)
         })
 
