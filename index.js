@@ -145,6 +145,16 @@ async function run() {
             }
             res.send({ guide })
         })
+        app.get('/users/guide', verifyToken, async (req, res) => {
+            
+            const query = { email: email }
+            const user = await usersCollection.findOne(query)
+            let guide = false;
+            if (user) {
+                guide = user?.role === "guide"
+            }
+            res.send({ guide })
+        })
 
         // set user on signup
         app.post('/users', async (req, res) => {
@@ -161,6 +171,29 @@ async function run() {
             }
         })
 
+
+        // admin change user role
+        app.patch('/users/update/:email', async (req, res) => {
+            const email = req.params.email
+            const user = req.body
+            const query = { email }
+            const updateDoc = {
+                $set: { ...user },
+            }
+            const result = await usersCollection.updateOne(query, updateDoc)
+            res.send(result)
+        })
+        app.patch('/users/guide-update/:email', async (req, res) => {
+            const email = req.params.email
+            const user = req.body
+            const query = { email }
+            const updateDoc = {
+                $set: { ...user },
+            }
+            console.log(user);
+            const result = await usersCollection.updateOne(query, updateDoc)
+            res.send(result)
+        })
 
 
         // request-to-admin api
@@ -225,12 +258,25 @@ async function run() {
         })
 
         // booking api
+        // get booked by users email
         app.get('/booking/:email', async (req, res) => {
             const email = req.params.email;
             const query = { userEmail: email }
             const result = await packageBookingCollection.find(query).toArray()
             res.send(result)
         })
+        app.get('/bookings', async (req, res) => {
+            const result = await packageBookingCollection.find().toArray()
+            res.send(result)
+        })
+        // get booked package by guide name
+        app.get('/booking/:name', async (req, res) => {
+            const name = req.params.name;
+            // const query = { guide }
+            const result = await packageBookingCollection.findOne(name)
+            res.send(result)
+        })
+        // update booking status by guide
         app.put("/booking", verifyToken, async (req, res) => {
             const { id, status } = req.query;
             const filter = { _id: new ObjectId(id) };
@@ -247,8 +293,8 @@ async function run() {
             const email = req.params.email;
             const result = await packageBookingCollection.find({ email: email }).toArray();
             res.send(result);
-        }
-        );
+        });
+        // booking by user
         app.post('/booking', async (req, res) => {
             const booking = req.body;
             const query = {
