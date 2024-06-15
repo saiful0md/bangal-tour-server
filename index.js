@@ -80,41 +80,51 @@ async function run() {
         }
 
 
-        // users api
-        app.get('/users', verifyToken, async (req, res) => {
+        //================= users api ================//
+        // get all users
+        app.get('/users', async (req, res) => {
             const result = await usersCollection.find().toArray()
             res.send(result)
         })
-
-        app.get("/users", verifyToken, async (req, res) => {
-            const page = parseInt(req.query.page);
-            const size = parseInt(req.query.size);
-            const { name, role } = req.query;
-            let query = {};
-            if (name) {
-                query.name = { $regex: name, $options: "i" };
-            }
-            if (role) {
-                query.role = role;
-            }
-            const result = await usersCollection
-                .find(query)
-                .skip((page - 1) * size)
-                .limit(size)
-                .toArray();
-            res.send(result);
-        });
+        // todo
+        // app.get("/users", verifyToken, async (req, res) => {
+        //     const page = parseInt(req.query.page);
+        //     const size = parseInt(req.query.size);
+        //     const { name, role } = req.query;
+        //     let query = {};
+        //     if (name) {
+        //         query.name = { $regex: name, $options: "i" };
+        //     }
+        //     if (role) {
+        //         query.role = role;
+        //     }
+        //     const result = await usersCollection
+        //         .find(query)
+        //         .skip((page - 1) * size)
+        //         .limit(size)
+        //         .toArray();
+        //     res.send(result);
+        // });
 
         // getting users length for pagination
+        // app.get("/users/count", async (req, res) => {
+        //     const result = await usersCollection.estimatedDocumentCount();
+        //     res.send({ count: result });
+        // });
 
-        app.get("/users/count", async (req, res) => {
-            const result = await usersCollection.estimatedDocumentCount();
-            res.send({ count: result });
-        });
+
+        // get user by email 
         app.get('/users/:email', verifyToken, async (req, res) => {
             const email = req.params.email
             const query = { email: email }
             const result = await usersCollection.findOne(query)
+            res.send(result)
+        })
+        // user get by role base
+        app.get('/users/guide/:role', async (req, res) => {
+            const users = req.params.role
+            const query = { role: users }
+            const result = await usersCollection.find(query).toArray()
             res.send(result)
         })
 
@@ -132,7 +142,8 @@ async function run() {
             }
             res.send({ admin })
         })
-        app.get('/users/guide/:email', verifyToken, async (req, res) => {
+        //  check user is guide or not
+        app.get('/users/guides/:email', verifyToken, async (req, res) => {
             const email = req.params.email;
             if (email !== req.decoded.email) {
                 return res.status(403).send({ message: 'forbidden access' })
@@ -145,16 +156,23 @@ async function run() {
             }
             res.send({ guide })
         })
-        app.get('/users/guide', verifyToken, async (req, res) => {
-            
-            const query = { email: email }
-            const user = await usersCollection.findOne(query)
-            let guide = false;
-            if (user) {
-                guide = user?.role === "guide"
-            }
-            res.send({ guide })
-        })
+        //  check user is tourist or not
+        // app.get('/users/tourist/:email', verifyToken, async (req, res) => {
+        //     const email = req.params.email;
+        //     if (email !== req.decoded.email) {
+        //         return res.status(403).send({ message: 'forbidden access' })
+        //     }
+        //     const query = { email: email }
+        //     const user = await usersCollection.findOne(query)
+        //     console.log(user);
+        //     let tourist = false;
+        //     if (user) {
+        //         tourist = user?.role === "tourist"
+        //     }
+        //     res.send({ tourist })
+        // })
+
+
 
         // set user on signup
         app.post('/users', async (req, res) => {
@@ -170,31 +188,6 @@ async function run() {
                 res.send(result)
             }
         })
-
-
-        // admin change user role
-        app.patch('/users/update/:email', async (req, res) => {
-            const email = req.params.email
-            const user = req.body
-            const query = { email }
-            const updateDoc = {
-                $set: { ...user },
-            }
-            const result = await usersCollection.updateOne(query, updateDoc)
-            res.send(result)
-        })
-        app.patch('/users/guide-update/:email', async (req, res) => {
-            const email = req.params.email
-            const user = req.body
-            const query = { email }
-            const updateDoc = {
-                $set: { ...user },
-            }
-            console.log(user);
-            const result = await usersCollection.updateOne(query, updateDoc)
-            res.send(result)
-        })
-
 
         // request-to-admin api
         app.put('/users', async (req, res) => {
@@ -220,24 +213,51 @@ async function run() {
             res.send(result)
 
         })
+        // admin change user role
+        app.patch('/users/update/:email', async (req, res) => {
+            const email = req.params.email
+            const user = req.body
+            const query = { email }
+            const updateDoc = {
+                $set: { ...user },
+            }
+            const result = await usersCollection.updateOne(query, updateDoc)
+            res.send(result)
+        })
 
-        // packages api
+        // guide update own data
+        app.patch('/users/guide-update/:email', async (req, res) => {
+            const email = req.params.email
+            const user = req.body
+            const query = { email }
+            const updateDoc = {
+                $set: { ...user },
+            }
+            console.log(user);
+            const result = await usersCollection.updateOne(query, updateDoc)
+            res.send(result)
+        })
+
+        // ================= packages api ===============//
+        // get all packages
         app.get('/packages', async (req, res) => {
             const result = await packagesCollection.find().toArray();
             res.send(result)
         })
+        //  get single package by id
         app.get('/packages/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const result = await packagesCollection.findOne(query);
             res.send(result)
         })
+        // add package by admin
         app.post('/packages', verifyToken, verifyAdmin, async (req, res) => {
             const package = req.body;
             const result = await packagesCollection.insertOne(package);
             res.send(result)
         })
-
+        // delete package by admin
         app.delete('/packages/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
@@ -245,60 +265,42 @@ async function run() {
             res.send(result)
         })
 
-        // guide api
-        app.get('/tourGuide', async (req, res) => {
-            const result = await tourGuideCollection.find().toArray()
-            res.send(result)
-        })
-        app.get('/tourGuide/:id', async (req, res) => {
-            const id = req.params.id
-            const query = { _id: new ObjectId(id) }
-            const result = await tourGuideCollection.findOne(query)
-            res.send(result)
-        })
 
-        // booking api
-        // get booked by users email
-        app.get('/booking/:email', async (req, res) => {
+
+        //================= booking api ===============//
+
+        // get booked by user email
+        app.get('/booking/:email', verifyToken, async (req, res) => {
             const email = req.params.email;
             const query = { userEmail: email }
             const result = await packageBookingCollection.find(query).toArray()
             res.send(result)
         })
-        app.get('/bookings', async (req, res) => {
-            const result = await packageBookingCollection.find().toArray()
+        // get booking data guide base
+        app.get('/booking/guideBase/:email', verifyToken, async (req, res) => {
+            const email = req.params.email;
+            const query = { "guide.email": email }
+            const result = await packageBookingCollection.find(query).toArray()
             res.send(result)
         })
-        // get booked package by guide name
-        app.get('/booking/:name', async (req, res) => {
-            const name = req.params.name;
-            // const query = { guide }
-            const result = await packageBookingCollection.findOne(name)
-            res.send(result)
-        })
+
         // update booking status by guide
-        app.put("/booking", verifyToken, async (req, res) => {
-            const { id, status } = req.query;
-            const filter = { _id: new ObjectId(id) };
+        app.put('/booking', verifyToken, async (req, res) => {
+            const {id, status } = req.body
+            const query = {_id: new ObjectId(id) }
             const updateBooking = {
                 $set: {
                     status: status,
                 },
             };
-            const options = { upsert: true };
-            const result = await packageBookingCollection.updateOne(filter, updateBooking, options);
+            const result = await packageBookingCollection.updateOne(query, updateBooking);
             res.send(result);
         });
-        app.get("/bookings/:email", verifyToken, async (req, res) => {
-            const email = req.params.email;
-            const result = await packageBookingCollection.find({ email: email }).toArray();
-            res.send(result);
-        });
+
         // booking by user
         app.post('/booking', async (req, res) => {
             const booking = req.body;
             const query = {
-
                 name: booking.name,
                 userEmail: booking.userEmail
             }
@@ -311,6 +313,7 @@ async function run() {
             const result = await packageBookingCollection.insertOne(booking);
             res.send(result)
         })
+        // delete booking by user 
         app.delete('/booking/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
@@ -318,14 +321,15 @@ async function run() {
             res.send(result)
         })
 
-        // wishlist
+        // ============ wishlist api ============//
+        // get wishlist by user email
         app.get('/wishList/:email', async (req, res) => {
             const email = req.params.email;
             const query = { userEmail: email }
             const result = await wishListCollection.find(query).toArray()
             res.send(result)
         })
-
+        // wishlist details 
         app.get('/wishList/:id', async (req, res) => {
             const id = req.params.id;
             console.log(id);
@@ -334,7 +338,7 @@ async function run() {
             res.send(result)
         })
 
-
+        // add wishlist by user
         app.post('/wishList', async (req, res) => {
             const package = req.body;
             const query = {
@@ -349,6 +353,7 @@ async function run() {
             res.send(result)
         })
 
+        // delete wishlist by user
         app.delete('/wishList/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
