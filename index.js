@@ -10,6 +10,7 @@ const port = process.env.PORT || 5000;
 app.use(cors({
     origin: [
         "http://localhost:5173",
+        "https://splendid-licorice-75aad6.netlify.app",
         "https://assignment-12-a77e8.web.app",
 
     ]
@@ -39,9 +40,7 @@ async function run() {
     try {
 
         const usersCollection = client.db("bangalTourDb").collection("users");
-        const requestToAdminCollection = client.db("bangalTourDb").collection("requestToAdmin");
         const wishListCollection = client.db("bangalTourDb").collection("wishList");
-        const tourGuideCollection = client.db("bangalTourDb").collection("tourGuide");
         const packagesCollection = client.db("bangalTourDb").collection("packages");
         const packageBookingCollection = client.db("bangalTourDb").collection("packageBooking");
 
@@ -86,33 +85,13 @@ async function run() {
             const result = await usersCollection.find().toArray()
             res.send(result)
         })
-        // todo
-        // app.get("/users", verifyToken, async (req, res) => {
-        //     const page = parseInt(req.query.page);
-        //     const size = parseInt(req.query.size);
-        //     const { name, role } = req.query;
-        //     let query = {};
-        //     if (name) {
-        //         query.name = { $regex: name, $options: "i" };
-        //     }
-        //     if (role) {
-        //         query.role = role;
-        //     }
-        //     const result = await usersCollection
-        //         .find(query)
-        //         .skip((page - 1) * size)
-        //         .limit(size)
-        //         .toArray();
-        //     res.send(result);
-        // });
-
-        // getting users length for pagination
-        // app.get("/users/count", async (req, res) => {
-        //     const result = await usersCollection.estimatedDocumentCount();
-        //     res.send({ count: result });
-        // });
-
-
+        app.get('/users/:id', async (req, res) => {
+            const id = req.params.id
+            const query = {_id: new ObjectId(id)}
+            const result = await usersCollection.findOne(query)
+            res.send(result)
+        })
+        
         // get user by email 
         app.get('/users/:email', verifyToken, async (req, res) => {
             const email = req.params.email
