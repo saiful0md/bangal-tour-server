@@ -4,6 +4,7 @@ const app = express()
 const jwt = require('jsonwebtoken')
 const cors = require('cors')
 require('dotenv').config();
+const stripe = require("stripe")(process.env.STRIPE_API_KEY);
 const port = process.env.PORT || 5000;
 
 // middleware
@@ -43,6 +44,7 @@ async function run() {
         const wishListCollection = client.db("bangalTourDb").collection("wishList");
         const packagesCollection = client.db("bangalTourDb").collection("packages");
         const packageBookingCollection = client.db("bangalTourDb").collection("packageBooking");
+        const paymentCollection = client.db("bangalTourDb").collection("payment");
 
 
         // jwt related api
@@ -81,19 +83,33 @@ async function run() {
 
         //================= users api ================//
         // get all users
-        app.get('/users', async (req, res) => {
+        app.get('/users', verifyToken, async (req, res) => {
             const result = await usersCollection.find().toArray()
             res.send(result)
         })
-        app.get('/users/:id', async (req, res) => {
+        app.get('/users/:id', verifyToken, async (req, res) => {
             const id = req.params.id
-            const query = {_id: new ObjectId(id)}
+            const query = { _id: new ObjectId(id) }
             const result = await usersCollection.findOne(query)
             res.send(result)
         })
-        
+
         // get user by email 
-        app.get('/users/:email', verifyToken, async (req, res) => {
+        app.get('/users-profile/:email', async (req, res) => {
+            const email = req.params.email
+            const query = { email: email }
+            const result = await usersCollection.findOne(query)
+            res.send(result)
+        })
+        // get user by email 
+        app.get('/users/guide-profile/:email', async (req, res) => {
+            const email = req.params.email
+            const query = { email: email }
+            const result = await usersCollection.findOne(query)
+            res.send(result)
+        })
+        // get user by email 
+        app.get('/users/admin-profile/:email', async (req, res) => {
             const email = req.params.email
             const query = { email: email }
             const result = await usersCollection.findOne(query)
@@ -135,23 +151,6 @@ async function run() {
             }
             res.send({ guide })
         })
-        //  check user is tourist or not
-        // app.get('/users/tourist/:email', verifyToken, async (req, res) => {
-        //     const email = req.params.email;
-        //     if (email !== req.decoded.email) {
-        //         return res.status(403).send({ message: 'forbidden access' })
-        //     }
-        //     const query = { email: email }
-        //     const user = await usersCollection.findOne(query)
-        //     console.log(user);
-        //     let tourist = false;
-        //     if (user) {
-        //         tourist = user?.role === "tourist"
-        //     }
-        //     res.send({ tourist })
-        // })
-
-
 
         // set user on signup
         app.post('/users', async (req, res) => {
@@ -193,7 +192,7 @@ async function run() {
 
         })
         // admin change user role
-        app.patch('/users/update/:email', async (req, res) => {
+        app.patch('/users/update/:email', verifyToken, verifyAdmin, async (req, res) => {
             const email = req.params.email
             const user = req.body
             const query = { email }
@@ -205,7 +204,7 @@ async function run() {
         })
 
         // guide update own data
-        app.patch('/users/guide-update/:email', async (req, res) => {
+        app.patch('/users/guide-update/:email', verifyToken, async (req, res) => {
             const email = req.params.email
             const user = req.body
             const query = { email }
@@ -224,7 +223,7 @@ async function run() {
             res.send(result)
         })
         //  get single package by id
-        app.get('/packages/:id', async (req, res) => {
+        app.get('/packages/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const result = await packagesCollection.findOne(query);
@@ -237,7 +236,7 @@ async function run() {
             res.send(result)
         })
         // delete package by admin
-        app.delete('/packages/:id', async (req, res) => {
+        app.delete('/packages/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await packagesCollection.deleteOne(query)
@@ -262,11 +261,19 @@ async function run() {
             const result = await packageBookingCollection.find(query).toArray()
             res.send(result)
         })
+        // get booking data id base
+        app.get('/booking-pay/:id', verifyToken, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await packageBookingCollection.findOne(query)
+            res.send(result)
+        })
 
         // update booking status by guide
-        app.put('/booking', verifyToken, async (req, res) => {
-            const {id, status } = req.body
-            const query = {_id: new ObjectId(id) }
+        app.put('/booking/:id', verifyToken, async (req, res) => {
+            const id = req.params.id
+            const { status } = req.body
+            const query = { _id: new ObjectId(id) }
             const updateBooking = {
                 $set: {
                     status: status,
@@ -277,7 +284,7 @@ async function run() {
         });
 
         // booking by user
-        app.post('/booking', async (req, res) => {
+        app.post('/booking', verifyToken, async (req, res) => {
             const booking = req.body;
             const query = {
                 name: booking.name,
@@ -293,13 +300,50 @@ async function run() {
             res.send(result)
         })
         // delete booking by user 
-        app.delete('/booking/:id', async (req, res) => {
+        app.delete('/booking/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const result = await packageBookingCollection.deleteOne(query)
             res.send(result)
         })
 
+        //=========== payment api ================== //
+
+
+        app.post('/create-payment-intent', (req, res) => {
+            const { price } = req.body;
+            const amount = parseFloat(price) * 100;
+
+            if (!price || isNaN(amount) || amount < 1) {
+                return res.status(400).send({ error: 'Invalid price' });
+            }
+
+            stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            })
+                .then(paymentIntent => {
+                    res.send({ clientSecret: paymentIntent.client_secret });
+                })
+                .catch(error => {
+                    console.error('Error creating payment intent:', error);
+                    res.status(500).send({ error: 'Internal Server Error' });
+                });
+        });
+        // payment save in database
+        app.post('/payment', async (req, res) => {
+            const payment = req.body;
+
+            try {
+                const paymentResult = await paymentCollection.insertOne(payment);
+                
+                res.status(201).send(paymentResult);
+            } catch (error) {
+                console.error('Error saving payment:', error);
+                res.status(500).send({ error: 'Internal Server Error' });
+            }
+        });
         // ============ wishlist api ============//
         // get wishlist by user email
         app.get('/wishList/:email', async (req, res) => {
